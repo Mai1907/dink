@@ -8,11 +8,14 @@ struct ContentView: View {
   @Query(sort: \ScanRecord.date, order: .reverse) private var scans: [ScanRecord]
   @Query private var pets: [Pet]
   @AppStorage("hasShownFirstScanPaywall") private var hasShownFirstScanPaywall = false
+  @AppStorage("lastFreeScanDate") private var lastFreeScanDate = Date.distantPast
   @AppStorage("mockResultIndex") private var mockResultIndex = 1
   @State private var screen: Screen = .home
   @State private var hingePose: HingePose = .unknown
   @State private var demoOverride = false
   @State private var currentScan: ScanRecord?
+  @State private var resultReturnScreen: Screen = .home
+  @State private var showDeleteError = false
   @State private var subscription = SubscriptionManager()
   @State private var showPaywall = false
   @State private var paywallReason: PaywallReason = .upgrade
@@ -25,7 +28,8 @@ struct ContentView: View {
   private var completedScans: [ScanRecord] { scans.filter(\.isComplete) }
   private var draft: ScanRecord? { scans.first(where: { !$0.isComplete && !$0.photos.isEmpty }) }
   private var hasUsedFreeScanThisMonth: Bool {
-    completedScans.contains { Calendar.current.isDate($0.date, equalTo: .now, toGranularity: .month) }
+    Calendar.current.isDate(lastFreeScanDate, equalTo: .now, toGranularity: .month) ||
+      completedScans.contains { Calendar.current.isDate($0.date, equalTo: .now, toGranularity: .month) }
   }
 
   var body: some View {
@@ -56,6 +60,11 @@ struct ContentView: View {
     }
     .sheet(isPresented: $showPetEditor) {
       petEditor
+    }
+    .alert("Couldn't delete scan", isPresented: $showDeleteError) {
+      Button("OK", role: .cancel) { }
+    } message: {
+      Text("Please try again.")
     }
     .onChange(of: selectedPhoto) { _, item in
       Task {
@@ -100,7 +109,8 @@ struct ContentView: View {
                           paywallReason = .upgrade
                           showPaywall = true
                         },
-                        onSave: { screen = .home })
+                        onSave: { screen = .home },
+                        onDelete: { deleteScan(currentScan) })
           }
         case .history:
           HistoryView(scans: completedScans, isPlus: subscription.isPlus,
@@ -108,7 +118,11 @@ struct ContentView: View {
                         paywallReason = .upgrade
                         showPaywall = true
                       },
-                      onSelect: { scan in currentScan = scan; screen = .results })
+                      onSelect: { scan in
+                        currentScan = scan
+                        resultReturnScreen = .history
+                        screen = .results
+                      })
         }
       }
       .toolbar {
@@ -194,6 +208,7 @@ struct ContentView: View {
           ForEach(subscription.isPlus ? Array(completedScans.prefix(3)) : Array(completedScans.prefix(1))) { scan in
             Button {
               currentScan = scan
+              resultReturnScreen = .home
               screen = .results
             } label: {
               scanRow(scan)
@@ -371,16 +386,33 @@ struct ContentView: View {
     guard let currentScan else { return }
     currentScan.finish(with: result)
     if !subscription.isPlus {
+      lastFreeScanDate = currentScan.date
       for previous in completedScans where previous.id != currentScan.id {
         modelContext.delete(previous)
       }
     }
     try? modelContext.save()
+    resultReturnScreen = .home
     screen = .results
     if !hasShownFirstScanPaywall {
       hasShownFirstScanPaywall = true
       paywallReason = .postScan
       showPaywall = true
+    }
+  }
+
+  private func deleteScan(_ scan: ScanRecord) {
+    do {
+      if !subscription.isPlus && Calendar.current.isDate(scan.date, equalTo: .now, toGranularity: .month) {
+        lastFreeScanDate = scan.date
+      }
+      modelContext.delete(scan)
+      try modelContext.save()
+      currentScan = nil
+      screen = resultReturnScreen
+    } catch {
+      modelContext.rollback()
+      showDeleteError = true
     }
   }
 

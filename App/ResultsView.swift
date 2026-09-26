@@ -6,9 +6,11 @@ struct ResultsView: View {
   var isPlus: Bool
   var onUpgrade: () -> Void
   var onSave: () -> Void
+  var onDelete: () -> Void
 
   @Environment(\.horizontalSizeClass) private var widthClass
   @State private var showShare = false
+  @State private var showDeleteConfirmation = false
 
   var body: some View {
     ScrollView {
@@ -31,6 +33,20 @@ struct ResultsView: View {
     }
     .background(Color(.systemGroupedBackground))
     .navigationTitle("Check-up result")
+    .toolbar {
+      ToolbarItem(placement: .topBarTrailing) {
+        Button("Delete scan", systemImage: "trash") {
+          showDeleteConfirmation = true
+        }
+        .labelStyle(.iconOnly)
+      }
+    }
+    .alert("Delete this scan?", isPresented: $showDeleteConfirmation) {
+      Button("Delete Scan", role: .destructive, action: onDelete)
+      Button("Cancel", role: .cancel) { }
+    } message: {
+      Text("The saved photos and result will be removed. This can't be undone.")
+    }
     .sheet(isPresented: $showShare) {
       ShareSheet(items: shareItems)
     }
