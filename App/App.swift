@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct AppDefinition: App {
@@ -6,5 +7,6 @@ struct AppDefinition: App {
     WindowGroup {
       ContentView()
     }
+    .modelContainer(for: [Pet.self, ScanRecord.self])
   }
 }

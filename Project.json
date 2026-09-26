@@ -3,7 +3,7 @@
     "Debug": "debug",
     "Release": "release"
   },
-  "name": "Project",
+  "name": "Dink",
   "options": {
     "groupSortPosition": "bottom",
     "transitivelyLinkDependencies": false
@@ -13,13 +13,17 @@
   },
   "targets": {
     "Dink": {
-      "deploymentTarget": "26.0",
+      "deploymentTarget": "27.1",
       "info": {
         "path": "App/Info.plist",
         "properties": {
-          "CFBundleDisplayName": "New Project",
+          "CFBundleDisplayName": "Dink",
+          "NSCameraUsageDescription": "Dink uses the camera to capture your pet's teeth during a check-up.",
+          "NSMotionUsageDescription": "Dink checks whether the phone is steady before capturing a scan.",
           "CFBundleShortVersionString": "1.0",
           "CFBundleVersion": "1",
+          "DinkRevenueCatTestAPIKey": "$(DINK_REVENUECAT_TEST_API_KEY)",
+          "DinkRevenueCatProductionAPIKey": "$(DINK_REVENUECAT_PRODUCTION_API_KEY)",
           "ITSAppUsesNonExemptEncryption": false,
           "UILaunchScreen": {},
           "UISupportedInterfaceOrientations": [
@@ -41,12 +45,21 @@
         "SWIFT_VERSION": "5.0",
         "TARGETED_DEVICE_FAMILY": "1"
       },
+      "dependencies": [
+        { "package": "RevenueCat", "product": "RevenueCat" }
+      ],
       "sources": [
         {
           "path": "App"
         }
       ],
       "type": "application"
+    }
+  },
+  "packages": {
+    "RevenueCat": {
+      "url": "https://github.com/RevenueCat/purchases-ios.git",
+      "from": "5.43.0"
     }
   }
 }
