@@ -3,6 +3,7 @@ import SwiftUI
 
 struct PaywallView: View {
   var subscription: SubscriptionManager
+  var onContinueFree: () -> Void
   var onClose: () -> Void
 
   @Environment(\.horizontalSizeClass) private var widthClass
@@ -28,6 +29,17 @@ struct PaywallView: View {
         .padding(24)
       }
       .background(Color(.systemGroupedBackground))
+      .safeAreaInset(edge: .bottom) {
+        Button(action: onContinueFree) {
+          Text("Continue for free")
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .background(.regularMaterial)
+      }
       .navigationTitle("Dink Plus")
       .toolbar {
         ToolbarItem(placement: .topBarTrailing) {
@@ -77,12 +89,14 @@ struct PaywallView: View {
       .background(.background, in: RoundedRectangle(cornerRadius: 8))
       .overlay(RoundedRectangle(cornerRadius: 8).stroke(.tint, lineWidth: 2))
 
-      Button("Continue with Dink Plus") {
+      Button {
         Task { await subscription.purchaseMonthly() }
+      } label: {
+        Text("Continue with Dink Plus")
+          .frame(maxWidth: .infinity)
       }
       .buttonStyle(.borderedProminent)
       .controlSize(.large)
-      .frame(maxWidth: .infinity)
       .disabled(subscription.monthlyPackage == nil || subscription.isLoading)
 
       Button("Restore Purchases") {

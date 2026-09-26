@@ -15,6 +15,7 @@ struct ContentView: View {
   @State private var currentScan: ScanRecord?
   @State private var subscription = SubscriptionManager()
   @State private var showPaywall = false
+  @State private var paywallReason: PaywallReason = .upgrade
   @State private var showPetEditor = false
   @State private var selectedPhoto: PhotosPickerItem?
   @State private var petNameDraft = ""
@@ -43,7 +44,15 @@ struct ContentView: View {
       await subscription.refresh()
     }
     .sheet(isPresented: $showPaywall) {
-      PaywallView(subscription: subscription) { showPaywall = false }
+      PaywallView(
+        subscription: subscription,
+        onContinueFree: {
+          let shouldStartDemo = paywallReason == .scanLimit
+          showPaywall = false
+          if shouldStartDemo { startScan(demo: true) }
+        },
+        onClose: { showPaywall = false }
+      )
     }
     .sheet(isPresented: $showPetEditor) {
       petEditor
@@ -87,12 +96,18 @@ struct ContentView: View {
         case .results:
           if let currentScan, currentScan.isComplete {
             ResultsView(scan: currentScan, isPlus: subscription.isPlus,
-                        onUpgrade: { showPaywall = true },
+                        onUpgrade: {
+                          paywallReason = .upgrade
+                          showPaywall = true
+                        },
                         onSave: { screen = .home })
           }
         case .history:
           HistoryView(scans: completedScans, isPlus: subscription.isPlus,
-                      onUpgrade: { showPaywall = true },
+                      onUpgrade: {
+                        paywallReason = .upgrade
+                        showPaywall = true
+                      },
                       onSelect: { scan in currentScan = scan; screen = .results })
         }
       }
@@ -137,6 +152,7 @@ struct ContentView: View {
           }
           Button("Start dental check-up", systemImage: "camera.viewfinder") {
             if !subscription.isPlus && hasUsedFreeScanThisMonth {
+              paywallReason = .scanLimit
               showPaywall = true
             } else {
               screen = .setup
@@ -359,6 +375,7 @@ struct ContentView: View {
     screen = .results
     if !hasShownFirstScanPaywall {
       hasShownFirstScanPaywall = true
+      paywallReason = .postScan
       showPaywall = true
     }
   }
@@ -389,4 +406,10 @@ private enum Screen: Equatable {
   case analyzing
   case results
   case history
+}
+
+private enum PaywallReason {
+  case scanLimit
+  case postScan
+  case upgrade
 }
