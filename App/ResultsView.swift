@@ -5,6 +5,7 @@ struct ResultsView: View {
   var scan: ScanRecord
   var petPhotoData: Data?
   var isPlus: Bool
+  var hingePose: HingePose
   var onUpgrade: () -> Void
   var onSave: () -> Void
   var onDelete: () -> Void
@@ -14,23 +15,16 @@ struct ResultsView: View {
   @State private var showDeleteConfirmation = false
 
   var body: some View {
-    ScrollView {
-      Group {
-        if widthClass == .regular {
-          HStack(alignment: .top, spacing: 24) {
-            photoPanel
-            findingsPanel
-          }
+    Group {
+      if hingePose.isPropped {
+        if #available(iOS 27.1, *) {
+          hingeReport
         } else {
-          VStack(alignment: .leading, spacing: 24) {
-            photoPanel
-            findingsPanel
-          }
+          standardReport
         }
+      } else {
+        standardReport
       }
-      .frame(maxWidth: 980)
-      .frame(maxWidth: .infinity)
-      .padding(20)
     }
     .background(Color(.systemGroupedBackground))
     .navigationTitle("Check-up result")
@@ -51,6 +45,56 @@ struct ResultsView: View {
     .sheet(isPresented: $showShare) {
       ShareSheet(items: shareItems)
     }
+  }
+
+  private var standardReport: some View {
+    ScrollView {
+      Group {
+        if widthClass == .regular {
+          HStack(alignment: .top, spacing: 24) {
+            photoPanel
+            findingsPanel
+          }
+        } else {
+          VStack(alignment: .leading, spacing: 24) {
+            photoPanel
+            findingsPanel
+          }
+        }
+      }
+      .frame(maxWidth: 980)
+      .frame(maxWidth: .infinity)
+      .padding(20)
+    }
+  }
+
+  @available(iOS 27.1, *)
+  private var hingeReport: some View {
+    ArrangementView {
+      ScrollView {
+        hingeEvidencePanel
+          .frame(maxWidth: 800)
+          .frame(maxWidth: .infinity)
+          .padding(.horizontal, 20)
+          .padding(.top, 16)
+          .padding(.bottom, 32)
+      }
+    } secondary: {
+      ScrollView {
+        VStack(alignment: .leading, spacing: 16) {
+          findingsPanel
+          Text("Photo-based screening only. A vet can assess concerns in person.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: 800)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.top, 30)
+        .padding(.bottom, 32)
+      }
+    }
+    .arrangementViewStyle(.split.axes(.vertical))
   }
 
   private var photoPanel: some View {
@@ -84,36 +128,80 @@ struct ResultsView: View {
           .foregroundStyle(.secondary)
       }
       .padding(.top, 8)
-      LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-        ForEach(Array(scan.photos.enumerated()), id: \.offset) { index, data in
-          if let image = UIImage(data: data) {
-            GeometryReader { geometry in
-              Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(width: geometry.size.width, height: geometry.size.height)
-                .clipped()
-                .overlay(alignment: .bottomLeading) {
-                  Text("View \(index + 1)")
-                    .font(.caption.bold())
-                    .foregroundStyle(.white)
-                    .padding(6)
-                    .background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 4))
-                    .padding(8)
-                }
-            }
-            .aspectRatio(1.3, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Captured scan view \(index + 1)")
-          }
-        }
-      }
+      scanPhotoGrid(aspectRatio: 1.3)
       Text("Photo-based screening only. A vet can assess concerns in person.")
         .font(.footnote)
         .foregroundStyle(.secondary)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private var hingeEvidencePanel: some View {
+    VStack(alignment: .leading, spacing: 18) {
+      HStack(spacing: 14) {
+        Group {
+          if let profileImage {
+            Image(uiImage: profileImage)
+              .resizable()
+              .scaledToFill()
+          } else {
+            Image(systemName: "pawprint.fill")
+              .resizable()
+              .scaledToFit()
+              .padding(14)
+              .foregroundStyle(.tint)
+          }
+        }
+        .frame(width: 62, height: 62)
+        .background(.quaternary)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .accessibilityLabel("Profile photo of \(scan.petName)")
+        VStack(alignment: .leading, spacing: 4) {
+          Text(scan.petName).font(.title2.bold())
+          Text(scan.date.formatted(date: .abbreviated, time: .shortened))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+        Spacer(minLength: 0)
+      }
+      HStack {
+        Text("Captured scan views").font(.headline)
+        Spacer()
+        Text("\(scan.photos.count) photos")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+      scanPhotoGrid(aspectRatio: 1.8)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private func scanPhotoGrid(aspectRatio: CGFloat) -> some View {
+    LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+      ForEach(Array(scan.photos.enumerated()), id: \.offset) { index, data in
+        if let image = UIImage(data: data) {
+          GeometryReader { geometry in
+            Image(uiImage: image)
+              .resizable()
+              .scaledToFill()
+              .frame(width: geometry.size.width, height: geometry.size.height)
+              .clipped()
+              .overlay(alignment: .bottomLeading) {
+                Text("View \(index + 1)")
+                  .font(.caption.bold())
+                  .foregroundStyle(.white)
+                  .padding(6)
+                  .background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 4))
+                  .padding(8)
+              }
+          }
+          .aspectRatio(aspectRatio, contentMode: .fit)
+          .clipShape(RoundedRectangle(cornerRadius: 6))
+          .accessibilityElement(children: .ignore)
+          .accessibilityLabel("Captured scan view \(index + 1)")
+        }
+      }
+    }
   }
 
   private var profileImage: UIImage? {

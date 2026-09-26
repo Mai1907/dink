@@ -107,6 +107,7 @@ struct ContentView: View {
         case .results:
           if let currentScan, currentScan.isComplete {
             ResultsView(scan: currentScan, petPhotoData: pet?.photoData, isPlus: subscription.isPlus,
+                        hingePose: hingePose,
                         onUpgrade: {
                           paywallReason = .upgrade
                           showPaywall = true
