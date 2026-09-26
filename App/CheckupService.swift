@@ -5,15 +5,15 @@ protocol CheckupService {
 }
 
 struct MockCheckupService: CheckupService {
-  var resultIndex: Int = 1
+  var resultIndex: Int = 0
 
-  static var defaultResult: CheckupResult { results[1] }
+  static var defaultResult: CheckupResult { results[0] }
 
   static var results: [CheckupResult] {[
     CheckupResult(
-      severityBand: .healthy, plaque: 0, tartar: 0, gumHealth: 0,
+      severityBand: .healthy, plaque: 1, tartar: 0, gumHealth: 0,
       redFlags: [],
-      findings: ["Teeth appear clean in these photos", "Gums appear pink and even"],
+      findings: ["A small amount of plaque may be visible near the back teeth", "Gums appear pink and even"],
       homeCarePlan: ["Keep brushing 3 times a week", "Offer dental chews daily", "Check again in 30 days"]
     ),
     CheckupResult(

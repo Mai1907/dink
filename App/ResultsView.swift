@@ -3,6 +3,7 @@ import UIKit
 
 struct ResultsView: View {
   var scan: ScanRecord
+  var petPhotoData: Data?
   var isPlus: Bool
   var onUpgrade: () -> Void
   var onSave: () -> Void
@@ -60,38 +61,65 @@ struct ResultsView: View {
         .font(.subheadline)
         .foregroundStyle(.secondary)
       GeometryReader { geometry in
-        ZStack {
-          if let data = scan.photoData, let image = UIImage(data: data) {
-            Image(uiImage: image)
-              .resizable()
-              .scaledToFill()
-              .frame(width: geometry.size.width, height: geometry.size.height)
-              .clipped()
-          } else {
-            Rectangle().fill(.quaternary)
-          }
-          RoundedRectangle(cornerRadius: 16)
-            .stroke(.mint, lineWidth: 3)
-            .frame(width: geometry.size.width * 0.48, height: geometry.size.height * 0.26)
-            .shadow(color: .mint.opacity(0.7), radius: 12)
-          VStack {
-            Spacer()
-            Text("Area reviewed")
-              .font(.caption.bold())
-              .foregroundStyle(.white)
-              .padding(8)
-              .background(.black.opacity(0.7), in: Capsule())
-              .padding(12)
+        if let profileImage {
+          Image(uiImage: profileImage)
+            .resizable()
+            .scaledToFill()
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .clipped()
+        } else {
+          Rectangle().fill(.quaternary)
+        }
+      }
+      .aspectRatio(1.5, contentMode: .fit)
+      .clipShape(RoundedRectangle(cornerRadius: 8))
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel("Profile photo of \(scan.petName)")
+
+      HStack {
+        Text("Captured scan views").font(.headline)
+        Spacer()
+        Text("\(scan.photos.count) photos")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+      .padding(.top, 8)
+      LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+        ForEach(Array(scan.photos.enumerated()), id: \.offset) { index, data in
+          if let image = UIImage(data: data) {
+            GeometryReader { geometry in
+              Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .clipped()
+                .overlay(alignment: .bottomLeading) {
+                  Text("View \(index + 1)")
+                    .font(.caption.bold())
+                    .foregroundStyle(.white)
+                    .padding(6)
+                    .background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 4))
+                    .padding(8)
+                }
+            }
+            .aspectRatio(1.3, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Captured scan view \(index + 1)")
           }
         }
       }
-      .aspectRatio(1.25, contentMode: .fit)
-      .clipShape(RoundedRectangle(cornerRadius: 8))
       Text("Photo-based screening only. A vet can assess concerns in person.")
         .font(.footnote)
         .foregroundStyle(.secondary)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private var profileImage: UIImage? {
+    if let petPhotoData, let image = UIImage(data: petPhotoData) { return image }
+    guard let url = Bundle.main.url(forResource: "dog-pp", withExtension: "jpg") else { return nil }
+    return UIImage(contentsOfFile: url.path)
   }
 
   private var findingsPanel: some View {
@@ -110,10 +138,15 @@ struct ResultsView: View {
       .padding(18)
       .background(.background, in: RoundedRectangle(cornerRadius: 8))
 
-      HStack(spacing: 8) {
-        scoreBadge("Plaque", value: scan.result.plaque)
-        scoreBadge("Tartar", value: scan.result.tartar)
-        scoreBadge("Gums", value: scan.result.gumHealth)
+      VStack(alignment: .leading, spacing: 8) {
+        Text("Photo scores · higher is better")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        HStack(spacing: 8) {
+          scoreBadge("Plaque", concern: scan.result.plaque)
+          scoreBadge("Tartar", concern: scan.result.tartar)
+          scoreBadge("Gums", concern: scan.result.gumHealth)
+        }
       }
 
       section("What the photos may show", items: scan.result.findings, symbol: "eye")
@@ -135,10 +168,10 @@ struct ResultsView: View {
     .frame(maxWidth: .infinity, alignment: .leading)
   }
 
-  private func scoreBadge(_ title: String, value: Int) -> some View {
+  private func scoreBadge(_ title: String, concern: Int) -> some View {
     VStack(alignment: .leading, spacing: 4) {
       Text(title).font(.caption).foregroundStyle(.secondary)
-      Text("\(value) / 3").font(.headline)
+      Text("\(max(0, min(3, 3 - concern))) / 3").font(.headline)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(12)

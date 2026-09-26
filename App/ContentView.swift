@@ -9,7 +9,7 @@ struct ContentView: View {
   @Query private var pets: [Pet]
   @AppStorage("hasShownFirstScanPaywall") private var hasShownFirstScanPaywall = false
   @AppStorage("lastFreeScanDate") private var lastFreeScanDate = Date.distantPast
-  @AppStorage("mockResultIndex") private var mockResultIndex = 1
+  @State private var mockResultIndex = 0
   @State private var screen: Screen = .home
   @State private var hingePose: HingePose = .unknown
   @State private var hingeAngle: Double?
@@ -106,7 +106,7 @@ struct ContentView: View {
         case .analyzing: analyzing
         case .results:
           if let currentScan, currentScan.isComplete {
-            ResultsView(scan: currentScan, isPlus: subscription.isPlus,
+            ResultsView(scan: currentScan, petPhotoData: pet?.photoData, isPlus: subscription.isPlus,
                         onUpgrade: {
                           paywallReason = .upgrade
                           showPaywall = true
