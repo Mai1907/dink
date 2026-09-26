@@ -279,13 +279,11 @@ struct ContentView: View {
     Group {
       if let data = pet?.photoData, let image = UIImage(data: data) {
         Image(uiImage: image).resizable().scaledToFill()
-      } else if let url = Bundle.main.url(forResource: "corgi", withExtension: "jpg"),
+      } else if let url = Bundle.main.url(forResource: "dog-pp", withExtension: "jpg"),
                 let image = UIImage(contentsOfFile: url.path) {
         Image(uiImage: image)
           .resizable()
           .scaledToFill()
-          .scaleEffect(1.9)
-          .offset(y: 7)
       } else {
         Image(systemName: "pawprint.fill").resizable().scaledToFit().padding(15)
       }
