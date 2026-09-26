@@ -41,6 +41,9 @@ struct ScanView: View {
   private var scanTargets: [ScanTarget] {
     camera.isSampleMode ? [.right, .gums] : ScanTarget.allCases
   }
+  private var capturedTargets: Set<ScanTarget> {
+    Set(scanTargets.prefix(captures.count))
+  }
 
   init(hingePose: HingePose, demoOverride: Bool, initialCaptures: [Data],
        onProgress: @escaping ([Data]) -> Void,
@@ -210,21 +213,24 @@ struct ScanView: View {
 
   private var checklist: some View {
     VStack(alignment: .leading, spacing: 7) {
-      ForEach(Array(scanTargets.enumerated()), id: \.offset) { index, target in
+      ForEach(ScanTarget.allCases, id: \.self) { target in
+        let isCaptured = capturedTargets.contains(target)
         HStack(spacing: 7) {
-          Image(systemName: captures.count > index ? "checkmark.circle.fill" : "circle")
-            .foregroundStyle(captures.count > index ? .mint : .white)
+          Image(systemName: isCaptured ? "checkmark.circle.fill" : "circle")
+            .foregroundStyle(isCaptured ? .mint : .white)
           Text(target.title)
             .lineLimit(1)
         }
         .font(.caption.weight(.semibold))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(target.title), \(isCaptured ? "captured" : "not captured")")
       }
     }
     .foregroundStyle(.white)
     .padding(12)
     .background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 8))
-    .accessibilityElement(children: .combine)
-    .accessibilityLabel("Captured \(captures.count) of \(scanTargets.count) dental views")
+    .accessibilityElement(children: .contain)
+    .accessibilityLabel("Dental view checklist")
   }
 
   private var proppedBadge: some View {
