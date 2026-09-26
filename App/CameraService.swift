@@ -19,17 +19,18 @@ final class CameraService {
   @ObservationIgnored private var activeDevice: AVCaptureDevice?
   @ObservationIgnored private var photoCompletion: ((Data?) -> Void)?
   @ObservationIgnored private var handheld = false
+  @ObservationIgnored private var sampleFrameGenerator: AVAssetImageGenerator?
+  @ObservationIgnored private var sampleDuration: TimeInterval = 0
+  @ObservationIgnored private var sampleStartDate = Date.now
 
   func start(handheld: Bool, forceSample: Bool) async {
     self.handheld = handheld
     #if targetEnvironment(simulator)
-    isSampleMode = true
-    isReady = true
+    await prepareSampleMode()
     return
     #else
     if forceSample {
-      isSampleMode = true
-      isReady = true
+      await prepareSampleMode()
       return
     }
     let authorization = AVCaptureDevice.authorizationStatus(for: .video)
@@ -42,14 +43,15 @@ final class CameraService {
       allowed = false
     }
     guard allowed else {
-      isSampleMode = true
-      isReady = true
+      await prepareSampleMode()
       return
     }
     configure(device: preferredDevice())
     isSampleMode = !session.inputs.isEmpty ? false : true
-    isReady = true
-    if !isSampleMode {
+    if isSampleMode {
+      await prepareSampleMode()
+    } else {
+      isReady = true
       let captureSession = session
       DispatchQueue.global(qos: .userInitiated).async { captureSession.startRunning() }
     }
@@ -71,12 +73,34 @@ final class CameraService {
 
   func capture(_ completion: @escaping (Data?) -> Void) {
     if isSampleMode {
-      completion(UIImage(named: "pet_sample_still")?.jpegData(compressionQuality: 0.88))
+      let elapsed = Date.now.timeIntervalSince(sampleStartDate)
+      let seconds = sampleDuration > 0 ? elapsed.truncatingRemainder(dividingBy: sampleDuration) : elapsed
+      let time = CMTime(seconds: seconds, preferredTimescale: 600)
+      let frame = sampleFrameGenerator.flatMap { try? $0.copyCGImage(at: time, actualTime: nil) }
+      completion(frame.flatMap { UIImage(cgImage: $0).jpegData(compressionQuality: 0.88) }
+                 ?? UIImage(named: "pet_sample_still")?.jpegData(compressionQuality: 0.88))
       return
     }
     photoCompletion = completion
     guard let frameSampler else { completion(nil); return }
     photoOutput.capturePhoto(with: AVCapturePhotoSettings(), delegate: frameSampler)
+  }
+
+  private func prepareSampleMode() async {
+    isSampleMode = true
+    sampleStartDate = .now
+    sampleFrameGenerator = nil
+    sampleDuration = 0
+    if let url = Bundle.main.url(forResource: "video-dog-wm", withExtension: "mov") {
+      let asset = AVURLAsset(url: url)
+      if let duration = try? await asset.load(.duration) {
+        sampleDuration = CMTimeGetSeconds(duration)
+      }
+      let generator = AVAssetImageGenerator(asset: asset)
+      generator.appliesPreferredTrackTransform = true
+      sampleFrameGenerator = generator
+    }
+    isReady = true
   }
 
   func attachDirection(to view: UIView) {

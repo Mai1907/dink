@@ -7,7 +7,7 @@ struct SamplePreview: View {
 
   var body: some View {
     Group {
-      if let url = Bundle.main.url(forResource: "pet_sample", withExtension: "mp4") {
+      if let url = Bundle.main.url(forResource: "video-dog-wm", withExtension: "mov") {
         LoopingSampleVideo(url: url)
       } else if let url = Bundle.main.url(forResource: "pet_sample_still", withExtension: "png"),
                 let image = UIImage(contentsOfFile: url.path) {
