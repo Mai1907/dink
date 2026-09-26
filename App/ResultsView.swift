@@ -131,9 +131,10 @@ struct ResultsView: View {
             .font(.largeTitle.bold())
         }
         Spacer()
-        Image(systemName: "stethoscope")
-          .font(.largeTitle)
-          .foregroundStyle(.tint)
+        Image("DinkIcon")
+          .resizable()
+          .scaledToFit()
+          .frame(width: 40, height: 40)
       }
       .padding(18)
       .background(.background, in: RoundedRectangle(cornerRadius: 8))

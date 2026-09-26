@@ -141,10 +141,17 @@ struct ContentView: View {
   private var home: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 24) {
+        Image("DinkLogo")
+          .resizable()
+          .scaledToFit()
+          .frame(width: 175, height: 50, alignment: .leading)
+          .accessibilityLabel("Dink")
+          .accessibilityAddTraits(.isHeader)
         VStack(alignment: .leading, spacing: 16) {
-          Image(systemName: "stethoscope")
-            .font(.system(size: 78, weight: .regular))
-            .foregroundStyle(.tint)
+          Image("DinkIcon")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 94, height: 94)
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.top, 12)
             .onLongPressGesture {
@@ -166,6 +173,20 @@ struct ContentView: View {
               .foregroundStyle(.secondary)
               .frame(maxWidth: .infinity)
           }
+          if hingePose == .closed || hingePose == .fullyOpen || hingePose == .adjust {
+            VStack(alignment: .leading, spacing: 8) {
+              Text("Place your Duo on a table")
+                .font(.headline)
+              Text("Open it like a laptop to about 45°, with the inner screen facing your pet.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+              FoldGuideView()
+                .frame(height: 108)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(.background, in: RoundedRectangle(cornerRadius: 8))
+          }
           Button("Start dental check-up", systemImage: "camera.viewfinder") {
             if !subscription.isPlus && hasUsedFreeScanThisMonth {
               paywallReason = .scanLimit
@@ -179,11 +200,6 @@ struct ContentView: View {
           .frame(maxWidth: .infinity)
           .disabled(!canStartLiveScan)
           foldStatus
-          if !canStartLiveScan {
-            Button("Try sample scan", systemImage: "play.fill") { startScan(demo: true) }
-              .buttonStyle(.bordered)
-              .frame(maxWidth: .infinity)
-          }
         }
 
         if let draft {
@@ -232,7 +248,20 @@ struct ContentView: View {
       .padding(20)
     }
     .background(Color(.systemGroupedBackground))
-    .navigationTitle("Dink")
+    .safeAreaInset(edge: .bottom) {
+      if !canStartLiveScan {
+        Button("Try sample scan", systemImage: "play.fill") { startScan(demo: true) }
+          .buttonStyle(.borderedProminent)
+          .controlSize(.large)
+          .frame(maxWidth: 300)
+          .frame(maxWidth: .infinity)
+          .padding(.horizontal, 20)
+          .padding(.vertical, 8)
+          .background(.regularMaterial)
+      }
+    }
+    .navigationTitle("")
+    .toolbar(.hidden, for: .navigationBar)
   }
 
   @ViewBuilder
@@ -362,10 +391,10 @@ struct ContentView: View {
 
   private var analyzing: some View {
     VStack(spacing: 24) {
-      Image(systemName: "stethoscope")
-        .font(.system(size: 82))
-        .foregroundStyle(.tint)
-        .symbolEffect(.pulse)
+      Image("DinkIcon")
+        .resizable()
+        .scaledToFit()
+        .frame(width: 94, height: 94)
       Text("Reviewing the photos…")
         .font(.title.bold())
       ProgressView()

@@ -46,7 +46,18 @@ struct HistoryView: View {
           .background(.background, in: RoundedRectangle(cornerRadius: 8))
         }
         if visibleScans.isEmpty {
-          ContentUnavailableView("No scans yet", systemImage: "stethoscope", description: Text("Your completed check-ups will appear here."))
+          ContentUnavailableView {
+            Label {
+              Text("No scans yet")
+            } icon: {
+              Image("DinkIcon")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 64, height: 64)
+            }
+          } description: {
+            Text("Your completed check-ups will appear here.")
+          }
         } else {
           LazyVStack(spacing: 10) {
             ForEach(visibleScans) { scan in

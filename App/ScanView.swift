@@ -38,6 +38,9 @@ struct ScanView: View {
   private var canCapture: Bool {
     demoOverride || handheld || hingePose.isPropped
   }
+  private var scanTargets: [ScanTarget] {
+    camera.isSampleMode ? [.right, .gums] : ScanTarget.allCases
+  }
 
   init(hingePose: HingePose, demoOverride: Bool, initialCaptures: [Data],
        onProgress: @escaping ([Data]) -> Void,
@@ -77,8 +80,12 @@ struct ScanView: View {
     .sensoryFeedback(.impact(weight: .medium), trigger: captures.count)
     .task(id: forceSampleVideo) {
       await camera.start(handheld: handheld, forceSample: forceSampleVideo || demoOverride)
+      if captures.count >= scanTargets.count {
+        onComplete(Array(captures.prefix(scanTargets.count)))
+        return
+      }
       lastCapture = .now
-      while !Task.isCancelled && captures.count < ScanTarget.allCases.count {
+      while !Task.isCancelled && captures.count < scanTargets.count {
         try? await Task.sleep(for: .milliseconds(200))
         guard canCapture, camera.isReady, !isCapturing else { continue }
         guard Date.now.timeIntervalSince(lastCapture) >= 3.5 else { continue }
@@ -203,10 +210,10 @@ struct ScanView: View {
 
   private var checklist: some View {
     VStack(alignment: .leading, spacing: 7) {
-      ForEach(ScanTarget.allCases, id: \.self) { target in
+      ForEach(Array(scanTargets.enumerated()), id: \.offset) { index, target in
         HStack(spacing: 7) {
-          Image(systemName: captures.count > target.rawValue ? "checkmark.circle.fill" : "circle")
-            .foregroundStyle(captures.count > target.rawValue ? .mint : .white)
+          Image(systemName: captures.count > index ? "checkmark.circle.fill" : "circle")
+            .foregroundStyle(captures.count > index ? .mint : .white)
           Text(target.title)
             .lineLimit(1)
         }
@@ -217,7 +224,7 @@ struct ScanView: View {
     .padding(12)
     .background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 8))
     .accessibilityElement(children: .combine)
-    .accessibilityLabel("Captured \(captures.count) of 4 dental views")
+    .accessibilityLabel("Captured \(captures.count) of \(scanTargets.count) dental views")
   }
 
   private var proppedBadge: some View {
@@ -238,8 +245,8 @@ struct ScanView: View {
     if !canCapture { return "Keep the mouth in view" }
     if !camera.isSampleMode && !camera.isBright { return "Move closer to the light" }
     if !camera.isSampleMode && !camera.isSteady { return "Hold the phone steady" }
-    let index = min(captures.count, ScanTarget.allCases.count - 1)
-    return ScanTarget.allCases[index].prompt
+    let index = min(captures.count, scanTargets.count - 1)
+    return scanTargets[index].prompt
   }
 
   private func topControlInset(in geometry: GeometryProxy) -> CGFloat {
@@ -256,7 +263,8 @@ struct ScanView: View {
   }
 
   private func captureNow() {
-    guard canCapture, !isCapturing, captures.count < 4 else { return }
+    let targetCount = scanTargets.count
+    guard canCapture, !isCapturing, captures.count < targetCount else { return }
     isCapturing = true
     camera.capture { data in
       isCapturing = false
@@ -269,7 +277,7 @@ struct ScanView: View {
         try? await Task.sleep(for: .milliseconds(160))
         withAnimation(.smooth(duration: 0.2)) { flash = false }
       }
-      if captures.count == 4 { onComplete(captures) }
+      if captures.count == targetCount { onComplete(captures) }
     }
   }
 }
