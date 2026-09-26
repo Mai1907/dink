@@ -2,6 +2,8 @@ import SwiftUI
 import UIKit
 
 enum HingePose: Equatable {
+  static let scanningAngleRange: ClosedRange<Double> = 45...120
+
   case unknown
   case closed
   case fullyOpen

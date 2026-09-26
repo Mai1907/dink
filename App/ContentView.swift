@@ -12,6 +12,7 @@ struct ContentView: View {
   @AppStorage("mockResultIndex") private var mockResultIndex = 1
   @State private var screen: Screen = .home
   @State private var hingePose: HingePose = .unknown
+  @State private var hingeAngle: Double?
   @State private var demoOverride = false
   @State private var currentScan: ScanRecord?
   @State private var resultReturnScreen: Screen = .home
@@ -31,6 +32,7 @@ struct ContentView: View {
     Calendar.current.isDate(lastFreeScanDate, equalTo: .now, toGranularity: .month) ||
       completedScans.contains { Calendar.current.isDate($0.date, equalTo: .now, toGranularity: .month) }
   }
+  private var canStartLiveScan: Bool { hingePose.isPropped || hingePose == .unsupported }
 
   var body: some View {
     Group {
@@ -175,6 +177,13 @@ struct ContentView: View {
           .buttonStyle(.borderedProminent)
           .controlSize(.large)
           .frame(maxWidth: .infinity)
+          .disabled(!canStartLiveScan)
+          foldStatus
+          if !canStartLiveScan {
+            Button("Try sample scan", systemImage: "play.fill") { startScan(demo: true) }
+              .buttonStyle(.bordered)
+              .frame(maxWidth: .infinity)
+          }
         }
 
         if let draft {
@@ -184,6 +193,7 @@ struct ContentView: View {
             screen = .setup
           }
           .buttonStyle(.bordered)
+          .disabled(!canStartLiveScan)
         }
 
         petSection
@@ -223,6 +233,26 @@ struct ContentView: View {
     }
     .background(Color(.systemGroupedBackground))
     .navigationTitle("Dink")
+  }
+
+  @ViewBuilder
+  private var foldStatus: some View {
+    if hingePose != .unsupported {
+      HStack(spacing: 10) {
+        Image(systemName: hingePose.isPropped ? "checkmark.circle.fill" : "iphone.gen3")
+          .foregroundStyle(hingePose.isPropped ? Color.green : Color.accentColor)
+        Text(hingePose.isPropped ? "Ready to scan" : "Set your Duo to 45°–120° to start")
+          .font(.subheadline.weight(.medium))
+        Spacer(minLength: 4)
+        if let hingeAngle {
+          Text("\(Int(hingeAngle.rounded()))°")
+            .font(.subheadline.monospacedDigit().weight(.semibold))
+            .foregroundStyle(.secondary)
+        }
+      }
+      .frame(maxWidth: .infinity)
+      .accessibilityElement(children: .combine)
+    }
   }
 
   private var petSection: some View {
@@ -304,9 +334,8 @@ struct ContentView: View {
           Button("Begin scan", systemImage: "camera.viewfinder") { startScan(demo: false) }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-        } else {
+        } else if hingePose == .unsupported {
           Button("Continue handheld", systemImage: "camera.viewfinder") {
-            hingePose = .unsupported
             startScan(demo: false)
           }
             .buttonStyle(.borderedProminent)
@@ -328,7 +357,7 @@ struct ContentView: View {
     case .closed, .unknown: "Open your Duo to start scanning."
     case .fullyOpen: "Fold it halfway, like a laptop, and set it on the floor facing your pet."
     case .propped: "Perfect. Kneel behind your pet and lift its lip."
-    case .adjust: "Adjust the fold until the screen faces your pet."
+    case .adjust: "Adjust the fold to 45°–120° so the screen faces your pet."
     case .unsupported: "Hold your phone steady near your pet's mouth. The flashlight will help with lighting."
     }
   }
@@ -420,14 +449,16 @@ struct ContentView: View {
   private func updateHinge(_ context: DeviceHingeContext) {
     guard let hinge = context.hinge else {
       hingePose = .unsupported
+      hingeAngle = nil
       return
     }
+    hingeAngle = hinge.angle.degrees
     if hinge.status == .closed {
       hingePose = .closed
     } else if hinge.status == .fullyOpen {
       hingePose = .fullyOpen
     } else if hinge.status == .partiallyOpen {
-      hingePose = (65...125).contains(hinge.angle.degrees) ? .propped : .adjust
+      hingePose = HingePose.scanningAngleRange.contains(hinge.angle.degrees) ? .propped : .adjust
     } else {
       hingePose = .adjust
     }
